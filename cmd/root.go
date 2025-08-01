@@ -6,10 +6,7 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:   "prefine",
-	Short: "Optimize images, JSON, YAML and other web development files",
-	Long: `prefine is a CLI tool designed to optimize various file types commonly
-found in web development projects including images (PNG, JPG, WebP),
-configuration files (JSON, YAML), and more.`,
+	Short: "Prefine: Optimize images, JSON, YAML and other files",
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Help()
 	},

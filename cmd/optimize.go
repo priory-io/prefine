@@ -1,19 +1,21 @@
 package cmd
 
 import (
-	"fmt"
+	"context"
 	"os"
-	"time"
 
-	"github.com/priory-io/prefine/internal/image"
-	"github.com/priory-io/prefine/internal/scanner"
+	"github.com/priory-io/prefine/internal/application"
+	"github.com/priory-io/prefine/internal/domain"
+	"github.com/priory-io/prefine/internal/infrastructure/filesystem"
+	"github.com/priory-io/prefine/internal/infrastructure/logging"
+	"github.com/priory-io/prefine/internal/infrastructure/processors"
 	"github.com/spf13/cobra"
 )
 
 var optimizeCmd = &cobra.Command{
 	Use:   "optimize [path]",
 	Short: "Optimize files in the specified directory",
-	Long: `Optimize images and other files
+	Long: `Optimize images, JSON, YAML and other web development files
 in the specified directory. If no path is provided, optimizes the current directory.`,
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -31,33 +33,28 @@ in the specified directory. If no path is provided, optimizes the current direct
 		maxWidth, _ := cmd.Flags().GetInt("max-width")
 		maxHeight, _ := cmd.Flags().GetInt("max-height")
 
-		if verbose {
-			fmt.Printf("Optimizing files in: %s\n", path)
-			if dryRun {
-				fmt.Println("Running in dry-run mode")
-			}
-		}
-
 		if _, err := os.Stat(path); os.IsNotExist(err) {
-			fmt.Printf("Error: Path '%s' does not exist\n", path)
+			logger := logging.NewConsoleLogger(verbose)
+			logger.Error("Path '%s' does not exist", path)
 			os.Exit(1)
 		}
 
-		fileScanner := scanner.NewFileScanner(include, exclude, recursive)
-		imageFiles, err := fileScanner.ScanForImages(path)
-		if err != nil {
-			fmt.Printf("Error scanning for images: %v\n", err)
-			os.Exit(1)
+		scanner := filesystem.NewFileScanner()
+		processors := []domain.FileProcessor{
+			processors.NewImageProcessor(),
+		}
+		logger := logging.NewConsoleLogger(verbose)
+
+		service := application.NewOptimizationService(scanner, processors, logger)
+
+		scanConfig := domain.ScanConfig{
+			Path:      path,
+			Include:   include,
+			Exclude:   exclude,
+			Recursive: recursive,
 		}
 
-		if len(imageFiles) == 0 {
-			fmt.Println("No image files found to optimize")
-			return
-		}
-
-		fmt.Printf("Found %d image files to optimize\n", len(imageFiles))
-
-		options := image.OptimizeOptions{
+		optimizeConfig := domain.OptimizeConfig{
 			Quality:   quality,
 			MaxWidth:  maxWidth,
 			MaxHeight: maxHeight,
@@ -65,42 +62,22 @@ in the specified directory. If no path is provided, optimizes the current direct
 			DryRun:    dryRun,
 		}
 
-		start := time.Now()
-		var totalSavings int64
-		var optimizedCount int
-		var errorCount int
+		ctx := context.Background()
+		report := service.OptimizeFiles(ctx, scanConfig, optimizeConfig)
 
-		for _, imagePath := range imageFiles {
-			if verbose {
-				fmt.Printf("Processing: %s\n", imagePath)
-			}
-
-			result := image.OptimizeImage(imagePath, options)
-			if result.Error != nil {
-				fmt.Printf("Error optimizing %s: %v\n", imagePath, result.Error)
-				errorCount++
-				continue
-			}
-
-			if result.Savings > 0 {
-				optimizedCount++
-				totalSavings += result.Savings
-				if verbose || !dryRun {
-					fmt.Printf("Optimized %s: %d bytes (%.1f%%) saved\n",
-						imagePath, result.Savings, result.SavingsPercent())
+		if verbose {
+			for _, result := range report.Results {
+				if result.Error != nil {
+					logger.Error("Failed to optimize %s: %v", result.File.Path, result.Error)
+				} else if result.WasOptimized() {
+					logger.Info("Optimized %s: %d bytes (%.1f%%) saved in %v",
+						result.File.Path, result.Savings, result.SavingsPercent(), result.Duration)
 				}
 			}
 		}
 
-		duration := time.Since(start)
-		fmt.Printf("\nOptimization complete in %v\n", duration)
-		fmt.Printf("Files processed: %d\n", len(imageFiles))
-		fmt.Printf("Files optimized: %d\n", optimizedCount)
-		if errorCount > 0 {
-			fmt.Printf("Errors encountered: %d\n", errorCount)
-		}
-		if totalSavings > 0 {
-			fmt.Printf("Total space saved: %d bytes\n", totalSavings)
+		if report.FailedFiles > 0 {
+			os.Exit(1)
 		}
 	},
 }
