@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 )
 
@@ -13,7 +11,7 @@ var rootCmd = &cobra.Command{
 found in web development projects including images (PNG, JPG, WebP),
 configuration files (JSON, YAML), and more.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Use 'prefine --help' for available commands")
+		cmd.Help()
 	},
 }
 
