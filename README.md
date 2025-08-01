@@ -1,6 +1,6 @@
 # Prefine
 
-_**prefine is a CLI tool designed to optimize various file types commonly found in web development projects**_
+_**Prefine is a CLI tool designed to optimize various file types commonly found in web development projects**_
 
 ## Installation
 
