@@ -1,6 +1,6 @@
 # Prefine
 
-_**prefine is a CLI tool designed to optimize various file types commonly found in web development projects including images (PNG, JPG, WebP), configuration files (JSON, YAML), and more.**_
+_**prefine is a CLI tool designed to optimize various file types commonly found in web development projects**_
 
 ## Installation
 
