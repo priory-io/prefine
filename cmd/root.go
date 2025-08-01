@@ -22,6 +22,12 @@ configuration files (JSON, YAML), and more.
 If no path is provided, optimizes the current directory.`,
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		version, _ := cmd.Flags().GetBool("version")
+		if version {
+			printVersion()
+			return
+		}
+
 		path := "."
 		if len(args) > 0 {
 			path = args[0]
@@ -92,6 +98,7 @@ func Execute() error {
 func init() {
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose output")
 	rootCmd.PersistentFlags().BoolP("dry-run", "n", false, "Show what would be optimized without making changes")
+	rootCmd.Flags().BoolP("version", "V", false, "Show version information")
 
 	rootCmd.Flags().StringSliceP("include", "i", []string{}, "File patterns to include (e.g., *.png,*.jpg)")
 	rootCmd.Flags().StringSliceP("exclude", "e", []string{}, "File patterns to exclude")
