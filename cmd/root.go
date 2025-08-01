@@ -24,7 +24,7 @@ If no path is provided, optimizes the current directory.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		version, _ := cmd.Flags().GetBool("version")
 		if version {
-			printVersion()
+			printVersionShort()
 			return
 		}
 
