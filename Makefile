@@ -67,24 +67,33 @@ build-dev:
 release: clean
 	@echo "Building release binaries for $(BINARY_NAME) $(VERSION)..."
 	@mkdir -p $(DIST_DIR)
-	@echo "Building for linux/amd64..."
-	@GOOS=linux GOARCH=amd64 CGO_ENABLED=$(CGO_ENABLED) go build \
-		-ldflags="$(LDFLAGS)" -gcflags="$(GCFLAGS)" -trimpath \
-		-o $(BUILD_DIR)/$(BINARY_NAME) $(CMD_DIR) && \
-		cd $(BUILD_DIR) && tar -czf $(BINARY_NAME)_$(VERSION)_linux_amd64.tar.gz $(BINARY_NAME) && \
-		mv $(BINARY_NAME)_$(VERSION)_linux_amd64.tar.gz dist/ && rm $(BINARY_NAME)
-	@echo "Building for darwin/amd64..."
-	@GOOS=darwin GOARCH=amd64 CGO_ENABLED=$(CGO_ENABLED) go build \
-		-ldflags="$(LDFLAGS)" -gcflags="$(GCFLAGS)" -trimpath \
-		-o $(BUILD_DIR)/$(BINARY_NAME) $(CMD_DIR) && \
-		cd $(BUILD_DIR) && tar -czf $(BINARY_NAME)_$(VERSION)_darwin_amd64.tar.gz $(BINARY_NAME) && \
-		mv $(BINARY_NAME)_$(VERSION)_darwin_amd64.tar.gz dist/ && rm $(BINARY_NAME)
-	@echo "Building for windows/amd64..."
-	@GOOS=windows GOARCH=amd64 CGO_ENABLED=$(CGO_ENABLED) go build \
-		-ldflags="$(LDFLAGS)" -gcflags="$(GCFLAGS)" -trimpath \
-		-o $(BUILD_DIR)/$(BINARY_NAME).exe $(CMD_DIR) && \
-		cd $(BUILD_DIR) && zip -q $(BINARY_NAME)_$(VERSION)_windows_amd64.zip $(BINARY_NAME).exe && \
-		mv $(BINARY_NAME)_$(VERSION)_windows_amd64.zip dist/ && rm $(BINARY_NAME).exe
+	@for platform in $(PLATFORMS); do \
+		os=$$(echo $$platform | cut -d'/' -f1); \
+		arch=$$(echo $$platform | cut -d'/' -f2); \
+		output_name=$(BINARY_NAME); \
+		if [ "$$os" = "windows" ]; then \
+			output_name=$(BINARY_NAME).exe; \
+		fi; \
+		echo "Building for $$os/$$arch..."; \
+		if GOOS=$$os GOARCH=$$arch CGO_ENABLED=$(CGO_ENABLED) go build \
+			-ldflags="$(LDFLAGS)" \
+			-gcflags="$(GCFLAGS)" \
+			-trimpath \
+			-o $(BUILD_DIR)/$$output_name \
+			$(CMD_DIR) 2>/dev/null; then \
+			archive_name=$(BINARY_NAME)_$(VERSION)_$${os}_$${arch}; \
+			if [ "$$os" = "windows" ]; then \
+				(cd $(BUILD_DIR) && zip -q $${archive_name}.zip $$output_name && mv $${archive_name}.zip dist/); \
+			else \
+				(cd $(BUILD_DIR) && tar -czf $${archive_name}.tar.gz $$output_name && mv $${archive_name}.tar.gz dist/); \
+			fi; \
+			rm -f $(BUILD_DIR)/$$output_name; \
+			echo "✓ Created: $${archive_name}"; \
+		else \
+			echo "✗ Failed to build for $$os/$$arch"; \
+		fi; \
+	done
+	@echo ""
 	@echo "Release builds complete in $(DIST_DIR)/"
 	@ls -la $(DIST_DIR)/
 
